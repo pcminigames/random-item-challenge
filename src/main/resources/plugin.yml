@@ -1,0 +1,13 @@
+name: "ric"
+version: "1.0"
+main: "ric.PluginMain"
+api-version: "1.21"
+authors: [pythoncraft]
+
+commands:
+  ric:
+    description: "Random Item Challenge command"
+    usage: "/ric <time>"
+  compass:
+    description: "Get a tracking compass"
+    usage: "/compass [<player>]"
