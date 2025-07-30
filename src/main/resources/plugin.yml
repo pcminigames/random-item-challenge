@@ -1,8 +1,11 @@
 name: "ric"
 version: "1.0"
-main: "ric.PluginMain"
+main: "com.pythoncraft.ric.PluginMain"
 api-version: "1.21"
 authors: [pythoncraft]
+description: "Random Item Challenge plugin for Minecraft"
+depend: [GameLib]
+depends: [GameLib]
 
 commands:
   ric:

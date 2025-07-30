@@ -1,4 +1,4 @@
-package ric.command;
+package com.pythoncraft.ric.command;
 
 import java.util.ArrayList;
 import java.util.List;

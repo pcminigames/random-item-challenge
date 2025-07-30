@@ -1,11 +1,12 @@
-package ric.command;
+package com.pythoncraft.ric.command;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import ric.PluginMain;
+import com.pythoncraft.gamelib.Chat;
+import com.pythoncraft.ric.PluginMain;
 
 public class RICCommand implements CommandExecutor {
 
@@ -24,7 +25,7 @@ public class RICCommand implements CommandExecutor {
 
         if (args.length == 1) {
             if (!args[0].matches("\\d+")) {
-                player.sendMessage(PluginMain.c(" §c§lInvalid time format. Please enter a number."));
+                player.sendMessage(Chat.c(" §c§lInvalid time format. Please enter a number."));
                 return true;
             }
 

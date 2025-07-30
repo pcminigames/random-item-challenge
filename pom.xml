@@ -28,6 +28,12 @@
                 <exclusion><groupId>org.bukkit</groupId><artifactId>bukkit</artifactId></exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>com.pythoncraft.gamelib</groupId>
+            <artifactId>gamelib</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>

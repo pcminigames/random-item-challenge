@@ -1,4 +1,4 @@
-package ric;
+package com.pythoncraft.ric;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,13 +39,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import ric.command.CompassCommand;
-import ric.command.CompassTabCompleter;
-import ric.command.RICCommand;
-import ric.command.RICTabCompleter;
-import ric.compass.CompassManager;
-import ric.compass.ShowCoords;
-import ric.compass.ShowWhen;
+import com.pythoncraft.ric.command.RICCommand;
+import com.pythoncraft.ric.command.RICTabCompleter;
+import com.pythoncraft.gamelib.compass.CompassCommand;
+import com.pythoncraft.gamelib.compass.CompassTabCompleter;
+import com.pythoncraft.gamelib.compass.CompassManager;
+import com.pythoncraft.gamelib.compass.ShowCoords;
+import com.pythoncraft.gamelib.compass.ShowWhen;
+import com.pythoncraft.gamelib.Chat;
+import com.pythoncraft.gamelib.ItemLoader;
+import com.pythoncraft.gamelib.Timer;
+
 
 public class PluginMain extends JavaPlugin implements Listener {
 
@@ -168,7 +172,7 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         this.timer = new Timer(prepareTime * 20, 20, (i) -> {
             for (Player p : playersInGame) {
-                p.sendActionBar(c("§a§l" + i));
+                p.sendActionBar(Chat.c("§a§l" + i));
                 if (i <= 3) {p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);}
             }
 
@@ -194,7 +198,7 @@ public class PluginMain extends JavaPlugin implements Listener {
             PluginMain.instance.timer.start();
 
             for (Player p : playersInGame) {
-                p.sendActionBar(c("§c§lGO!"));
+                p.sendActionBar(Chat.c("§c§lGO!"));
                 p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 2);
                 for (Attribute attribute : attributes.keySet()) {
                     p.getAttribute(attribute).setBaseValue(attributes.get(attribute));
@@ -226,9 +230,7 @@ public class PluginMain extends JavaPlugin implements Listener {
         preparing = false;
 
         if (this.timer != null) {this.timer.cancel();}
-
-        bossBar.removeAll();
-
+        if (bossBar != null) {bossBar.removeAll();}
         if (world == null) {return;}
 
         WorldBorder worldBorder = world.getWorldBorder();
@@ -251,7 +253,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     }
 
     public static BossBar setupBossbar() {
-        BossBar bar = Bukkit.createBossBar(c("§a§lRandom Item Challenge"), BarColor.GREEN, BarStyle.SOLID);
+        BossBar bar = Bukkit.createBossBar(Chat.c("§a§lRandom Item Challenge"), BarColor.GREEN, BarStyle.SOLID);
         bar.setVisible(false);
         bar.setProgress(1);
         for (Player p : Bukkit.getOnlinePlayers()) {bar.addPlayer(p);}
@@ -307,13 +309,13 @@ public class PluginMain extends JavaPlugin implements Listener {
         player.getInventory().clear();
 
         if (gameRunning) {
-            player.sendMessage(c("§c§lA game is currently running. You are in spectator mode."));
+            player.sendMessage(Chat.c("§c§lA game is currently running. You are in spectator mode."));
             player.sendMessage("You will be teleported to the next game when it starts.");
         } else if (preparing) {
-            player.sendMessage(c("§c§lA game is currently being prepared. You are in spectator mode."));
+            player.sendMessage(Chat.c("§c§lA game is currently being prepared. You are in spectator mode."));
             player.sendMessage("You will be teleported to the next game when it starts.");
         } else {
-            player.sendMessage(c("§a§lNo game is currently running."));
+            player.sendMessage(Chat.c("§a§lNo game is currently running."));
             player.sendMessage("You can start a new game with /ric or /ric <time>.");
         }
     }
@@ -340,7 +342,7 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         if (playersInGame.size() == 1) {
             Player winner = playersInGame.iterator().next();
-            winner.sendMessage(c("§a§lYou are the last player standing! You win!"));
+            winner.sendMessage(Chat.c("§a§lYou are the last player standing! You win!"));
             stopGame();
         } else if (playersInGame.size() == 0) {
             getLogger().info("All players have died or left. Ending game.");
@@ -352,8 +354,6 @@ public class PluginMain extends JavaPlugin implements Listener {
     public void onPickupItem(PlayerPickupItemEvent event) {
         event.setCancelled(true);
     }
-
-    public static String c(String message) {return ChatColor.translateAlternateColorCodes('&', message);}
 
     private void loadConfig() {
         gap = this.config.getInt("gap", gap);
@@ -368,6 +368,6 @@ public class PluginMain extends JavaPlugin implements Listener {
         }
 
         items.clear();
-        items = new ItemLoader().loadItems(itemsConfig.getConfigurationSection("items"));
+        items = ItemLoader.loadItems(itemsConfig.getConfigurationSection("items"));
     }
 }
