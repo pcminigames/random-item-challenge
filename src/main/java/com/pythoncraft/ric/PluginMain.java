@@ -47,6 +47,7 @@ import com.pythoncraft.gamelib.compass.CompassManager;
 import com.pythoncraft.gamelib.compass.ShowCoords;
 import com.pythoncraft.gamelib.compass.ShowWhen;
 import com.pythoncraft.gamelib.Chat;
+import com.pythoncraft.gamelib.GameLib;
 import com.pythoncraft.gamelib.ItemLoader;
 import com.pythoncraft.gamelib.Timer;
 
@@ -69,6 +70,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     private FileConfiguration itemsConfig;
 
     public static int currentGame = -1;
+    public static int nextGame = 0;
     public static int borderSize = 400;
     public static int gap = 6000;
     public static int prepareTime = 5;
@@ -129,15 +131,12 @@ public class PluginMain extends JavaPlugin implements Listener {
         getLogger().log(Level.INFO, "Starting Random Item Challenge with interval {0} seconds.", time);
         if (world == null) {return;}
 
-        int x = 0, y = 0, z = 0;
-        currentGame++;
+        currentGame = nextGame;
 
-        while (true) {
-            z = currentGame * gap;
-            y = world.getHighestBlockYAt(x, z);
-            if (isSafe(x, y, z)) {break;}
-            currentGame++;
-        }
+        nextGame = findNextGame(currentGame + 1);
+        int x = nextGame * gap;
+        int z = 0;
+        int y = world.getHighestBlockYAt(x, z);
 
         config.set("last-game", currentGame);
         try {config.save(configFile);} catch (IOException e) {e.printStackTrace();}
@@ -209,6 +208,12 @@ public class PluginMain extends JavaPlugin implements Listener {
             return null;
         });
 
+        Timer.after(prepareTime * 20 + 200, (v) -> {
+            GameLib.forceLoadChunkStop(world, currentGame * gap, 0, 2);
+            GameLib.forceLoadChunk(world, nextGame * gap, 0, 2);
+            return null;
+        });
+
         preparing = true;
         gameRunning = false;
         bossBar = setupBossbar();
@@ -216,6 +221,12 @@ public class PluginMain extends JavaPlugin implements Listener {
         // playersInGame.clear();
         compassManager.getActiveCompasses().clear();
         this.timer.start();
+    }
+
+    public int findNextGame(int start) {
+        int g = start;
+        while (!isSafe(0, world.getHighestBlockYAt(0, g * gap), g * gap)) {g++;}
+        return g;
     }
 
     public static ItemStack getItemStack(Material material, int amount) {
@@ -361,6 +372,7 @@ public class PluginMain extends JavaPlugin implements Listener {
         defaultTime = this.config.getInt("default-time", defaultTime);
         prepareTime = this.config.getInt("prepare-time", prepareTime);
         currentGame = this.config.getInt("last-game", currentGame);
+        currentGame = findNextGame(currentGame + 1);
 
         avoidedBiomes.clear();
         for (String biome : this.config.getStringList("avoided-biomes")) {

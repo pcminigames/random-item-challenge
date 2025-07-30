@@ -17,9 +17,10 @@ public class RICTabCompleter implements TabCompleter {
         if (!(sender instanceof Player)) {return completions;}
 
         if (args.length == 1) {
+            completions.add("30");
             completions.add("60");
-            completions.add("120");
-            completions.add("180");
+            completions.add("90");
+            completions.add("stop");
         }
 
         return completions;
