@@ -96,16 +96,15 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         this.configFile = new File(getDataFolder(), "config.yml");
         this.config = YamlConfiguration.loadConfiguration(this.configFile);
-
+ 
         this.itemsFile = new File(getDataFolder(), "items.yml");
         this.itemsConfig = YamlConfiguration.loadConfiguration(this.itemsFile);
+
+        world = Bukkit.getWorld("world");
 
         this.loadConfig();
 
         getLogger().log(Level.INFO, "Items loaded: {0}", items.size());
-
-        world = Bukkit.getWorld("world");
-
         getLogger().info("Random Item Challenge plugin enabled!");
 
         this.getCommand("ric").setExecutor(new RICCommand());
