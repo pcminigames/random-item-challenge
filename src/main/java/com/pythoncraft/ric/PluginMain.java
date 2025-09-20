@@ -7,10 +7,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
-import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -27,6 +25,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -43,12 +42,13 @@ import com.pythoncraft.ric.command.RICCommand;
 import com.pythoncraft.ric.command.RICTabCompleter;
 import com.pythoncraft.gamelib.compass.CompassCommand;
 import com.pythoncraft.gamelib.compass.CompassTabCompleter;
-import com.pythoncraft.gamelib.compass.CompassManager;
-import com.pythoncraft.gamelib.compass.ShowCoords;
-import com.pythoncraft.gamelib.compass.ShowWhen;
+// import com.pythoncraft.gamelib.compass.CompassManager;
+// import com.pythoncraft.gamelib.compass.ShowCoords;
+// import com.pythoncraft.gamelib.compass.ShowWhen;
+import com.pythoncraft.gamelib.Logger;
 import com.pythoncraft.gamelib.Chat;
 import com.pythoncraft.gamelib.GameLib;
-import com.pythoncraft.gamelib.ItemLoader;
+import com.pythoncraft.gamelib.inventory.ItemLoader;
 import com.pythoncraft.gamelib.Timer;
 
 
@@ -76,7 +76,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     public static int prepareTime = 5;
     public static HashSet<String> avoidedBiomes = new HashSet<>();
 
-    public static CompassManager compassManager;
+    // public static CompassManager compassManager;
     public static BossBar bossBar;
 
     public static World world;
@@ -104,8 +104,8 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         this.loadConfig();
 
-        getLogger().log(Level.INFO, "Items loaded: {0}", items.size());
-        getLogger().info("Random Item Challenge plugin enabled!");
+        Logger.info("Items loaded: {0}", items.size());
+        Logger.info("Random Item Challenge plugin enabled!");
 
         this.getCommand("ric").setExecutor(new RICCommand());
         this.getCommand("ric").setTabCompleter(new RICTabCompleter());
@@ -116,9 +116,9 @@ public class PluginMain extends JavaPlugin implements Listener {
         attributes.put(Attribute.ATTACK_DAMAGE, 1.0);
         attributes.put(Attribute.JUMP_STRENGTH, 0.42);
 
-        compassManager = new CompassManager(ShowCoords.ALL, ShowWhen.IN_INVENTORY);
+        // compassManager = new CompassManager(ShowCoords.ALL, ShowWhen.IN_INVENTORY);
 
-        Timer.loop(5, (timeLeft) -> {compassManager.update(); return null;}).start();
+        // Timer.loop(5, (timeLeft) -> {compassManager.update();}).start();
     }
 
     @Override
@@ -127,7 +127,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     }
 
     public void startGame(int time) {
-        getLogger().log(Level.INFO, "Starting Random Item Challenge with interval {0} seconds.", time);
+        Logger.info("Starting Random Item Challenge with interval {0} seconds.", time);
         if (world == null) {return;}
 
         currentGame = nextGame;
@@ -162,7 +162,7 @@ public class PluginMain extends JavaPlugin implements Listener {
 
             Inventory i = p.getInventory();
             i.clear();
-            i.setItem(0, compassManager.createTrackingCompass().getItem());
+            // i.setItem(0, compassManager.createTrackingCompass().getItem());
             i.addItem(getItemStack(Material.COOKED_PORKCHOP, 64));
 
             playersInGame.add(p);
@@ -173,9 +173,7 @@ public class PluginMain extends JavaPlugin implements Listener {
                 p.sendActionBar(Chat.c("§a§l" + i));
                 if (i <= 3) {p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);}
             }
-
-            return null;
-        }, (i) -> {
+        }, () -> {
             preparing = false;
             gameRunning = true;
 
@@ -189,8 +187,6 @@ public class PluginMain extends JavaPlugin implements Listener {
                         giveRandomItem(p);
                     }
                 }
-
-                return null;
             });
 
             PluginMain.instance.timer.start();
@@ -203,14 +199,11 @@ public class PluginMain extends JavaPlugin implements Listener {
                 }
                 p.setGameMode(GameMode.SURVIVAL);
             }
-
-            return null;
         });
 
-        Timer.after(prepareTime * 20 + 200, (v) -> {
+        Timer.after(prepareTime * 20 + 200, () -> {
             GameLib.forceLoadChunkStop(world, currentGame * gap, 0, 2);
             GameLib.forceLoadChunk(world, nextGame * gap, 0, 2);
-            return null;
         });
 
         preparing = true;
@@ -218,13 +211,13 @@ public class PluginMain extends JavaPlugin implements Listener {
         bossBar = setupBossbar();
         bossBar.setVisible(true);
         // playersInGame.clear();
-        compassManager.getActiveCompasses().clear();
+        // compassManager.getActiveCompasses().clear();
         this.timer.start();
     }
 
     public int findNextGame(int start) {
         int g = start;
-        while (!isSafe(0, world.getHighestBlockYAt(0, g * gap), g * gap)) {g++;}
+        while (!isSafe(g * gap, world.getHighestBlockYAt(0, g * gap), 0)) {g++;}
         return g;
     }
 
@@ -235,7 +228,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     }
 
     public void stopGame() {
-        getInstance().getLogger().log(Level.INFO, "Stopping Random Item Challenge.");
+        Logger.info("Stopping Random Item Challenge.");
         gameRunning = false;
         preparing = false;
 
@@ -251,12 +244,18 @@ public class PluginMain extends JavaPlugin implements Listener {
     public static boolean isSafe(int x, int y, int z) {
         if (avoidedBiomes.isEmpty()) {return true;}
 
+        String b = world.getBiome(x, y, z).toString().toUpperCase();
+
+        Logger.info("Checking safe location ({0}).", b);
+
         for (String biome : avoidedBiomes) {
-            if (world.getBiome(x, y, z).toString().toUpperCase().contains(biome)) {
+            if (b.contains(biome)) {
                 return false;
                 // return true;
             }
         }
+
+        Logger.info("Location is safe.");
 
         return true;
         // return false;
@@ -283,7 +282,7 @@ public class PluginMain extends JavaPlugin implements Listener {
         if (preparing) {
             World w = event.getTo().getWorld();
             double x = Math.round(event.getFrom().getX() - 0.5) + 0.5;
-            double y = event.getFrom().getY();
+            double y = event.getTo().getY();
             double z = Math.round(event.getFrom().getZ() - 0.5) + 0.5;
             float yaw = event.getTo().getYaw();
             float pitch = event.getTo().getPitch();
@@ -344,24 +343,37 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         player.getInventory().clear();
         player.setGameMode(GameMode.SPECTATOR);
-        player.teleport(new Location(world, 0.5, 100, currentGame * gap + 0.5));
+        player.teleport(new Location(world, currentGame * gap + 0.5, 100, 0.5));
         player.clearActivePotionEffects();
         for (Attribute attribute : attributes.keySet()) {player.getAttribute(attribute).setBaseValue(attributes.get(attribute));}
+
+        Logger.info("{0} has died. {1} players remaining.", player.getName(), playersInGame.size());
 
         playersInGame.remove(player);
 
         if (playersInGame.size() == 1) {
             Player winner = playersInGame.iterator().next();
-            winner.sendMessage(Chat.c("§a§lYou are the last player standing! You win!"));
+            // winner.sendMessage(Chat.c("§a§lYou are the last player standing! You win!"));
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                p.sendMessage(Chat.c("§a§l" + winner.getName() + " is the last player standing and wins the game!"));
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
+            }
             stopGame();
         } else if (playersInGame.size() == 0) {
-            getLogger().info("All players have died or left. Ending game.");
+            Logger.info("All players have died or left. Ending game.");
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                p.sendMessage(Chat.c("§a§lAll players have died or left. Ending game."));
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
+            }
             stopGame();
         }
     }
 
     @EventHandler
-    public void onPickupItem(PlayerPickupItemEvent event) {
+    public void onPickupItem(EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player p)) {return;}
+        if (!playersInGame.contains(p)) {return;}
+
         event.setCancelled(true);
     }
 
@@ -371,12 +383,16 @@ public class PluginMain extends JavaPlugin implements Listener {
         defaultTime = this.config.getInt("default-time", defaultTime);
         prepareTime = this.config.getInt("prepare-time", prepareTime);
         currentGame = this.config.getInt("last-game", currentGame);
+        Logger.info("Last game was {0}.", currentGame);
+        
         currentGame = findNextGame(currentGame + 1);
+        Logger.info("Next game will be {0}.", currentGame);
 
         avoidedBiomes.clear();
         for (String biome : this.config.getStringList("avoided-biomes")) {
             avoidedBiomes.add(biome.toUpperCase());
         }
+        Logger.info("Avoided biomes: {0}", String.join(", ", avoidedBiomes));
 
         items.clear();
         items = ItemLoader.loadItems(itemsConfig.getConfigurationSection("items"));
