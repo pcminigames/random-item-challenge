@@ -109,8 +109,8 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         this.getCommand("ric").setExecutor(new RICCommand());
         this.getCommand("ric").setTabCompleter(new RICTabCompleter());
-        this.getCommand("compass").setExecutor(new CompassCommand());
-        this.getCommand("compass").setTabCompleter(new CompassTabCompleter());
+        // this.getCommand("compass").setExecutor(new CompassCommand());
+        // this.getCommand("compass").setTabCompleter(new CompassTabCompleter());
 
         attributes.put(Attribute.MOVEMENT_SPEED, 0.1);
         attributes.put(Attribute.ATTACK_DAMAGE, 1.0);
