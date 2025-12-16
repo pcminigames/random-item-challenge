@@ -30,7 +30,6 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -42,9 +41,10 @@ import com.pythoncraft.ric.command.RICCommand;
 import com.pythoncraft.ric.command.RICTabCompleter;
 import com.pythoncraft.gamelib.compass.CompassCommand;
 import com.pythoncraft.gamelib.compass.CompassTabCompleter;
-// import com.pythoncraft.gamelib.compass.CompassManager;
-// import com.pythoncraft.gamelib.compass.ShowCoords;
-// import com.pythoncraft.gamelib.compass.ShowWhen;
+import com.pythoncraft.gamelib.compass.CompassManager;
+import com.pythoncraft.gamelib.compass.ShowCoords;
+import com.pythoncraft.gamelib.compass.ShowWhen;
+import com.pythoncraft.gamelib.compass.TrackingCompass;
 import com.pythoncraft.gamelib.Logger;
 import com.pythoncraft.gamelib.Chat;
 import com.pythoncraft.gamelib.GameLib;
@@ -76,7 +76,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     public static int prepareTime = 5;
     public static HashSet<String> avoidedBiomes = new HashSet<>();
 
-    // public static CompassManager compassManager;
+    public static CompassManager compassManager;
     public static BossBar bossBar;
 
     public static World world;
@@ -109,16 +109,16 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         this.getCommand("ric").setExecutor(new RICCommand());
         this.getCommand("ric").setTabCompleter(new RICTabCompleter());
-        // this.getCommand("compass").setExecutor(new CompassCommand());
-        // this.getCommand("compass").setTabCompleter(new CompassTabCompleter());
+        this.getCommand("compass").setExecutor(new CompassCommand());
+        this.getCommand("compass").setTabCompleter(new CompassTabCompleter());
 
         attributes.put(Attribute.MOVEMENT_SPEED, 0.1);
         attributes.put(Attribute.ATTACK_DAMAGE, 1.0);
         attributes.put(Attribute.JUMP_STRENGTH, 0.42);
 
-        // compassManager = new CompassManager(ShowCoords.ALL, ShowWhen.IN_INVENTORY);
+        compassManager = new CompassManager(ShowCoords.ALL, ShowWhen.IN_HAND);
 
-        // Timer.loop(5, (timeLeft) -> {compassManager.update();}).start();
+        Timer.loop(5, (timeLeft) -> {compassManager.update();}).start();
     }
 
     @Override
@@ -153,31 +153,42 @@ public class PluginMain extends JavaPlugin implements Listener {
         playersInGame.clear();
 
         for (Player p : Bukkit.getOnlinePlayers()) {
-            p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 20 * prepareTime, 0, false, false));
-            p.setGameMode(GameMode.ADVENTURE);
+            p.clearActivePotionEffects();
+            p.setHealth(p.getMaxHealth());
+            p.setFoodLevel(20);
+            p.setSaturation(5);
+            p.setExhaustion(0);
             for (Attribute attribute : attributes.keySet()) {p.getAttribute(attribute).setBaseValue(0);}
-            
-            p.teleport(new Location(world, x + 0.5, y + 1.09375, z + 0.5));
-            p.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 0, false, false));
 
             Inventory i = p.getInventory();
+            TrackingCompass compass = CompassManager.getInstance().createTrackingCompass();
             i.clear();
-            // i.setItem(0, compassManager.createTrackingCompass().getItem());
-            i.addItem(getItemStack(Material.COOKED_PORKCHOP, 64));
+            i.setItem(0, compass.getItem());
+            i.setItem(36, getItemStack(Material.COOKED_PORKCHOP, 64));
+            compass.track(playersInGame.stream().filter((player) -> {return player != p;}).findFirst().orElse(null));
+
+            p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 20 * prepareTime, 0, false, false));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 0, false, false));
+            
+            p.setGameMode(GameMode.ADVENTURE);
+            p.teleport(new Location(world, x + 0.5, y + 1.09375, z + 0.5));
 
             playersInGame.add(p);
         }
 
         this.timer = new Timer(prepareTime * 20, 20, (i) -> {
+            // Countdown before game starts
             for (Player p : playersInGame) {
                 p.sendActionBar(Chat.c("§a§l" + i));
                 if (i <= 3) {p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);}
             }
         }, () -> {
+            // Start the game
             preparing = false;
             gameRunning = true;
 
             PluginMain.instance.timer = Timer.loop(20, (i1) -> {
+                // Game loop (every second)
                 int q = i1 % time;
                 PluginMain.bossBar.setProgress(1 - (q / (double) time));
 
@@ -189,6 +200,7 @@ public class PluginMain extends JavaPlugin implements Listener {
                 }
             });
 
+            // Start the timer
             PluginMain.instance.timer.start();
 
             for (Player p : playersInGame) {
@@ -201,17 +213,17 @@ public class PluginMain extends JavaPlugin implements Listener {
             }
         });
 
-        Timer.after(prepareTime * 20 + 200, () -> {
-            GameLib.forceLoadChunkStop(world, currentGame * gap, 0, 2);
-            GameLib.forceLoadChunk(world, nextGame * gap, 0, 2);
-        });
+        // Pre-load the next chunk (No idea if this actually does anything)
+        // Timer.after(prepareTime * 20 + 200, () -> {
+        //     GameLib.forceLoadChunkStop(world, currentGame * gap, 0, 2);
+        //     GameLib.forceLoadChunk(world, nextGame * gap, 0, 2);
+        // });
 
         preparing = true;
         gameRunning = false;
         bossBar = setupBossbar();
         bossBar.setVisible(true);
-        // playersInGame.clear();
-        // compassManager.getActiveCompasses().clear();
+        compassManager.getActiveCompasses().clear();
         this.timer.start();
     }
 
@@ -231,6 +243,13 @@ public class PluginMain extends JavaPlugin implements Listener {
         Logger.info("Stopping Random Item Challenge.");
         gameRunning = false;
         preparing = false;
+
+        for (Player p : playersInGame) {
+            p.getInventory().clear();
+            p.setGameMode(GameMode.SPECTATOR);
+            p.clearActivePotionEffects();
+            for (Attribute attribute : attributes.keySet()) {p.getAttribute(attribute).setBaseValue(attributes.get(attribute));}
+        }
 
         if (this.timer != null) {this.timer.cancel();}
         if (bossBar != null) {bossBar.removeAll();}
