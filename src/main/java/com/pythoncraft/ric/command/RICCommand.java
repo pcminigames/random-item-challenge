@@ -15,19 +15,20 @@ public class RICCommand implements CommandExecutor {
         if (sender == null || !(sender instanceof Player)) {return false;}
 
         Player player = (Player) sender;
+        PluginMain plugin = PluginMain.getInstance();
 
         if (args.length > 1) {
             player.sendMessage("Usage: /ric <stop|[time]>");
             return true;
         }
 
-        int time = PluginMain.defaultTime;
+        int time = plugin.defaultInterval;
 
         if (args.length == 1) {
             if (args[0].equalsIgnoreCase("stop")) {
-                if (!PluginMain.gameRunning) {player.sendMessage(Chat.c(" §c§lNo game is currently running.")); return true;}
+                if (!plugin.gameManager.isGame) {player.sendMessage(Chat.c(" §c§lNo game is currently running.")); return true;}
 
-                PluginMain.getInstance().stopGame();
+                plugin.stopGame();
                 return true;
             }
 
@@ -39,9 +40,9 @@ public class RICCommand implements CommandExecutor {
             time = Integer.parseInt(args[0]);
         }
 
-        if (PluginMain.preparing) {player.sendMessage(Chat.c(" §c§lA game is already being prepared.")); return true;}
-        if (PluginMain.gameRunning) {PluginMain.getInstance().stopGame();}
-        PluginMain.getInstance().startGame(time);
+        if (plugin.gameManager.isPreparing) {player.sendMessage(Chat.c(" §c§lA game is already being prepared.")); return true;}
+        if (plugin.gameManager.isGame) {plugin.stopGame();}
+        plugin.startGame(time);
 
         return true;
     }

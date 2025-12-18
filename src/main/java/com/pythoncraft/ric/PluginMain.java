@@ -1,53 +1,46 @@
 package com.pythoncraft.ric;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.GameRule;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 
 import com.pythoncraft.ric.command.RICCommand;
 import com.pythoncraft.ric.command.RICTabCompleter;
 import com.pythoncraft.gamelib.compass.CompassCommand;
 import com.pythoncraft.gamelib.compass.CompassTabCompleter;
 import com.pythoncraft.gamelib.compass.CompassManager;
-import com.pythoncraft.gamelib.compass.ShowCoords;
 import com.pythoncraft.gamelib.compass.ShowWhen;
-import com.pythoncraft.gamelib.compass.TrackingCompass;
+import com.pythoncraft.gamelib.game.GameManager;
+import com.pythoncraft.gamelib.game.event.GameEndEvent;
+import com.pythoncraft.gamelib.game.event.GamePrepareEvent;
+import com.pythoncraft.gamelib.game.event.GameStartEvent;
+import com.pythoncraft.gamelib.game.event.TickEvent;
 import com.pythoncraft.gamelib.Logger;
+import com.pythoncraft.gamelib.PlayerActions;
 import com.pythoncraft.gamelib.Chat;
-import com.pythoncraft.gamelib.GameLib;
 import com.pythoncraft.gamelib.inventory.ItemLoader;
 import com.pythoncraft.gamelib.Timer;
 
@@ -57,36 +50,27 @@ public class PluginMain extends JavaPlugin implements Listener {
     static PluginMain instance;
     public static PluginMain getInstance() { return instance; }
 
-    public static int defaultTime = 60;
-    public static int interval;
-
-    public static Random random = new Random();
-
-    public static HashMap<Attribute, Double> attributes = new HashMap<>();
-
     private File configFile;
     private FileConfiguration config;
     private File itemsFile;
     private FileConfiguration itemsConfig;
 
-    public static int currentGame = -1;
-    public static int nextGame = 0;
-    public static int borderSize = 400;
-    public static int gap = 6000;
-    public static int prepareTime = 5;
-    public static HashSet<String> avoidedBiomes = new HashSet<>();
+    public ItemStack food;
+    public List<PotionEffect> effects = new ArrayList<>();
+    public int borderSize = 400;
+    public int gap = 6000;
+    public int prepareTime = 5;
+    public HashSet<String> avoidedBiomes = new HashSet<>();
+    public int defaultInterval = 60;
+    public int interval;
 
-    public static CompassManager compassManager;
-    public static BossBar bossBar;
-
-    public static World world;
-    public static boolean gameRunning = false;
-    public static boolean preparing = false;
-    public static HashSet<Player> playersInGame = new HashSet<>();
-
-    public static List<ItemStack> items = new ArrayList<>();
-
+    public CompassManager compassManager;
+    public GameManager gameManager;
+    public World world;
     public Timer timer;
+    public Random random = new Random();
+
+    public List<ItemStack> items = new ArrayList<>();
 
     @Override
     public void onEnable() {
@@ -96,27 +80,32 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         this.configFile = new File(getDataFolder(), "config.yml");
         this.config = YamlConfiguration.loadConfiguration(this.configFile);
- 
         this.itemsFile = new File(getDataFolder(), "items.yml");
         this.itemsConfig = YamlConfiguration.loadConfiguration(this.itemsFile);
 
-        world = Bukkit.getWorld("world");
-
+        this.world = Bukkit.getWorld("world");
         this.loadConfig();
 
-        Logger.info("Items loaded: {0}", items.size());
         Logger.info("Random Item Challenge plugin enabled!");
+        Logger.info("Items loaded: {0}", this.items.size());
 
         this.getCommand("ric").setExecutor(new RICCommand());
         this.getCommand("ric").setTabCompleter(new RICTabCompleter());
         this.getCommand("compass").setExecutor(new CompassCommand());
         this.getCommand("compass").setTabCompleter(new CompassTabCompleter());
 
-        attributes.put(Attribute.MOVEMENT_SPEED, 0.1);
-        attributes.put(Attribute.ATTACK_DAMAGE, 1.0);
-        attributes.put(Attribute.JUMP_STRENGTH, 0.42);
-
-        compassManager = new CompassManager(ShowCoords.ALL, ShowWhen.IN_HAND);
+        this.compassManager = new CompassManager("§7Tracking §a{TARGET} §7at §f{X} {Y} {Z}", ShowWhen.IN_HAND);
+        this.gameManager = new GameManager();
+        this.gameManager.setAvoidedBiomes(this.avoidedBiomes);
+        this.gameManager.setBorder(this.borderSize);
+        this.gameManager.setGap(this.gap);
+        this.gameManager.setWorld(this.world);
+        this.gameManager.setBossbar(BarColor.GREEN, BarStyle.SOLID);
+        this.gameManager.setConfig(configFile, config, "last-game");
+        this.gameManager.setPlayerSetupMethod(
+            PlayerActions.setupPlayerPrepare(GameMode.ADVENTURE, false, this.food, true, null),
+            PlayerActions.setupPlayerReset(this.effects));
+        Logger.info("Food item: {0}", this.food);
 
         Timer.loop(5, (timeLeft) -> {compassManager.update();}).start();
     }
@@ -128,218 +117,94 @@ public class PluginMain extends JavaPlugin implements Listener {
 
     public void startGame(int time) {
         Logger.info("Starting Random Item Challenge with interval {0} seconds.", time);
-        if (world == null) {return;}
 
-        currentGame = nextGame;
+        this.interval = time;
 
-        nextGame = findNextGame(currentGame + 1);
-        int x = nextGame * gap;
-        int z = 0;
-        int y = world.getHighestBlockYAt(x, z);
+        this.world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
+        this.world.setTime(1000); // Set time to morning
 
-        config.set("last-game", currentGame);
-        try {config.save(configFile);} catch (IOException e) {e.printStackTrace();}
+        this.gameManager.setGameTime(0, this.prepareTime, 0);
+        this.gameManager.startGame(this.world);
+    }
 
-        if (world.getBlockAt(x, y, z).getType().equals(Material.WATER) && world.getBlockAt(x, y - 1, z).getType().equals(Material.WATER)) {
-            world.getBlockAt(x, y + 1, z).setType(Material.LILY_PAD);
-        }
+    @EventHandler
+    public void onGamePrepare(GamePrepareEvent event) {
+    }
 
-        WorldBorder worldBorder = world.getWorldBorder();
-        worldBorder.setCenter(x, z);
-        worldBorder.setSize(borderSize);
-        worldBorder.setDamageAmount(100);
-        worldBorder.setWarningDistance(0);
+    @EventHandler
+    public void onGameStart(GameStartEvent event) {
+        Logger.info("Game start event triggered.");
+    }
 
-        playersInGame.clear();
+    @EventHandler
+    public void onGameTick(TickEvent event) {
+        int timeLeft = event.getTimeRemaining();
 
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            p.clearActivePotionEffects();
-            p.setHealth(p.getMaxHealth());
-            p.setFoodLevel(20);
-            p.setSaturation(5);
-            p.setExhaustion(0);
-            for (Attribute attribute : attributes.keySet()) {p.getAttribute(attribute).setBaseValue(0);}
-
-            Inventory i = p.getInventory();
-            TrackingCompass compass = CompassManager.getInstance().createTrackingCompass();
-            i.clear();
-            i.setItem(0, compass.getItem());
-            i.setItem(36, getItemStack(Material.COOKED_PORKCHOP, 64));
-            compass.track(playersInGame.stream().filter((player) -> {return player != p;}).findFirst().orElse(null));
-
-            p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 20 * prepareTime, 0, false, false));
-            p.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 0, false, false));
+        if (this.gameManager.isPreparing) {
+            this.gameManager.bossbar.setTitle(Chat.c("§lPrepare: §c§l" + timeLeft + "§r§l seconds remaining"));
+            this.gameManager.bossbar.setProgress((double) timeLeft / this.gameManager.prepareTimeSec);
             
-            p.setGameMode(GameMode.ADVENTURE);
-            p.teleport(new Location(world, x + 0.5, y + 1.09375, z + 0.5));
+            Chat.actionBar(this.gameManager.playersInGame, "§a§l" + timeLeft);
+            for (Player p : this.gameManager.playersInGame) {
+                if (timeLeft == 0) {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 2);
+                    Chat.actionBar(p, "§c§lGO!");
+                } else if (timeLeft <= 3) {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
+                }
+            }
+        } else if (this.gameManager.isGame) {
+            int timeElapsed = event.getElapsedSeconds() % this.interval;
 
-            playersInGame.add(p);
+            this.gameManager.bossbar.setTitle(Chat.c("§lNext item in §a§l" + (this.interval - timeElapsed) + "§r§l seconds"));
+            this.gameManager.bossbar.setProgress(1 - ((double) timeElapsed / this.interval));
+
+            if (timeElapsed == 0) {
+                for (Player p : this.gameManager.playersInGame) {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
+                    giveRandomItem(p);
+                }
+            }
         }
-
-        this.timer = new Timer(prepareTime * 20, 20, (i) -> {
-            // Countdown before game starts
-            for (Player p : playersInGame) {
-                p.sendActionBar(Chat.c("§a§l" + i));
-                if (i <= 3) {p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);}
-            }
-        }, () -> {
-            // Start the game
-            preparing = false;
-            gameRunning = true;
-
-            PluginMain.instance.timer = Timer.loop(20, (i1) -> {
-                // Game loop (every second)
-                int q = i1 % time;
-                PluginMain.bossBar.setProgress(1 - (q / (double) time));
-
-                if (q == 0) {
-                    for (Player p : playersInGame) {
-                        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
-                        giveRandomItem(p);
-                    }
-                }
-            });
-
-            // Start the timer
-            PluginMain.instance.timer.start();
-
-            for (Player p : playersInGame) {
-                p.sendActionBar(Chat.c("§c§lGO!"));
-                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 2);
-                for (Attribute attribute : attributes.keySet()) {
-                    p.getAttribute(attribute).setBaseValue(attributes.get(attribute));
-                }
-                p.setGameMode(GameMode.SURVIVAL);
-            }
-        });
-
-        // Pre-load the next chunk (No idea if this actually does anything)
-        // Timer.after(prepareTime * 20 + 200, () -> {
-        //     GameLib.forceLoadChunkStop(world, currentGame * gap, 0, 2);
-        //     GameLib.forceLoadChunk(world, nextGame * gap, 0, 2);
-        // });
-
-        preparing = true;
-        gameRunning = false;
-        bossBar = setupBossbar();
-        bossBar.setVisible(true);
-        compassManager.getActiveCompasses().clear();
-        this.timer.start();
     }
 
-    public int findNextGame(int start) {
-        int g = start;
-        while (!isSafe(g * gap, world.getHighestBlockYAt(0, g * gap), 0)) {g++;}
-        return g;
-    }
-
-    public static ItemStack getItemStack(Material material, int amount) {
-        ItemStack item = new ItemStack(material, amount);
-        item.setAmount(amount);
-        return item;
+    @EventHandler
+    public void onGameEnd(GameEndEvent event) {
     }
 
     public void stopGame() {
         Logger.info("Stopping Random Item Challenge.");
-        gameRunning = false;
-        preparing = false;
+        
+        this.gameManager.stopGame();
 
-        for (Player p : playersInGame) {
-            p.getInventory().clear();
-            p.setGameMode(GameMode.SPECTATOR);
-            p.clearActivePotionEffects();
-            for (Attribute attribute : attributes.keySet()) {p.getAttribute(attribute).setBaseValue(attributes.get(attribute));}
-        }
+        if (this.world == null) {return;}
 
-        if (this.timer != null) {this.timer.cancel();}
-        if (bossBar != null) {bossBar.removeAll();}
-        if (world == null) {return;}
-
-        WorldBorder worldBorder = world.getWorldBorder();
-        worldBorder.setSize(60_000_000);
-        worldBorder.setCenter(0, 0);
+        WorldBorder worldBorder = this.world.getWorldBorder();
+        worldBorder.reset();
     }
 
-    public static boolean isSafe(int x, int y, int z) {
-        if (avoidedBiomes.isEmpty()) {return true;}
-
-        String b = world.getBiome(x, y, z).toString().toUpperCase();
-
-        Logger.info("Checking safe location ({0}).", b);
-
-        for (String biome : avoidedBiomes) {
-            if (b.contains(biome)) {
-                return false;
-                // return true;
-            }
-        }
-
-        Logger.info("Location is safe.");
-
-        return true;
-        // return false;
-    }
-
-    public static BossBar setupBossbar() {
-        BossBar bar = Bukkit.createBossBar(Chat.c("§a§lRandom Item Challenge"), BarColor.GREEN, BarStyle.SOLID);
-        bar.setVisible(false);
-        bar.setProgress(1);
-        for (Player p : Bukkit.getOnlinePlayers()) {bar.addPlayer(p);}
-
-        return bar;
-    }
-
-    public static void giveRandomItem(Player player) {
-        int i = random.nextInt(items.size());
-        ItemStack item = items.get(i).clone();
+    public void giveRandomItem(Player player) {
+        int i = random.nextInt(this.items.size());
+        ItemStack item = this.items.get(i).clone();
         player.getInventory().addItem(item);
-    }
-
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        if (!playersInGame.contains(event.getPlayer())) {return;}
-        if (preparing) {
-            World w = event.getTo().getWorld();
-            double x = Math.round(event.getFrom().getX() - 0.5) + 0.5;
-            double y = event.getTo().getY();
-            double z = Math.round(event.getFrom().getZ() - 0.5) + 0.5;
-            float yaw = event.getTo().getYaw();
-            float pitch = event.getTo().getPitch();
-            event.setTo(new Location(w, x, y, z, yaw, pitch));
-        }
-    }
-
-    @EventHandler
-    public void onPlayerAttack(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player p)) {return;}
-
-        if (!playersInGame.contains(p)) {return;}
-        if (preparing) {event.setCancelled(true);}
-    }
-
-    @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        if (!playersInGame.contains(event.getPlayer())) {return;}
-        if (preparing) {event.setCancelled(true);}
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        if (bossBar != null) {bossBar.addPlayer(player);}
+        if (this.gameManager.bossbar != null) {this.gameManager.bossbar.addPlayer(player);}
 
-        if (playersInGame.contains(player)) {return;}
+        if (this.gameManager.playersInGame != null && this.gameManager.playersInGame.contains(player)) {return;}
         
         player.setGameMode(GameMode.SPECTATOR);
-        player.teleport(new Location(world, 0.5, 100, currentGame * gap + 0.5));
+        player.teleport(this.gameManager.getSpectatorLocation());
         player.clearActivePotionEffects();
-        for (Attribute attribute : attributes.keySet()) {player.getAttribute(attribute).setBaseValue(attributes.get(attribute));}
         player.getInventory().clear();
 
-        if (gameRunning) {
+        if (this.gameManager.isGame) {
             player.sendMessage(Chat.c("§c§lA game is currently running. You are in spectator mode."));
             player.sendMessage("You will be teleported to the next game when it starts.");
-        } else if (preparing) {
+        } else if (this.gameManager.isPreparing) {
             player.sendMessage(Chat.c("§c§lA game is currently being prepared. You are in spectator mode."));
             player.sendMessage("You will be teleported to the next game when it starts.");
         } else {
@@ -351,37 +216,39 @@ public class PluginMain extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        // playersInGame.remove(player);
-        bossBar.removePlayer(player);
+        if (this.gameManager.playersInGame != null) {
+            PlayerActions.setupPlayerReset(effects).accept(player, this.gameManager.playersInGame);
+        }
+
+        if (this.gameManager.bossbar != null) {this.gameManager.bossbar.removePlayer(player);}
     }
 
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
-        if (!playersInGame.contains(player)) {return;}
+        if (!this.gameManager.playersInGame.contains(player)) {return;}
 
         player.getInventory().clear();
+        PlayerActions.setupPlayerReset(effects).accept(player, this.gameManager.playersInGame);
         player.setGameMode(GameMode.SPECTATOR);
-        player.teleport(new Location(world, currentGame * gap + 0.5, 100, 0.5));
+        player.teleport(this.gameManager.getSpectatorLocation());
         player.clearActivePotionEffects();
-        for (Attribute attribute : attributes.keySet()) {player.getAttribute(attribute).setBaseValue(attributes.get(attribute));}
 
-        Logger.info("{0} has died. {1} players remaining.", player.getName(), playersInGame.size());
+        Logger.info("{0} has died. {1} players remaining.", player.getName(), this.gameManager.playersInGame.size());
 
-        playersInGame.remove(player);
+        this.gameManager.playersInGame.remove(player);
 
-        if (playersInGame.size() == 1) {
-            Player winner = playersInGame.iterator().next();
-            // winner.sendMessage(Chat.c("§a§lYou are the last player standing! You win!"));
+        if (this.gameManager.playersInGame.size() == 1) {
+            Player winner = this.gameManager.playersInGame.iterator().next();
             for (Player p : Bukkit.getOnlinePlayers()) {
                 p.sendMessage(Chat.c("§a§l" + winner.getName() + " is the last player standing and wins the game!"));
                 p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
             }
             stopGame();
-        } else if (playersInGame.size() == 0) {
+        } else if (this.gameManager.playersInGame.size() == 0) {
             Logger.info("All players have died or left. Ending game.");
             for (Player p : Bukkit.getOnlinePlayers()) {
-                p.sendMessage(Chat.c("§a§lAll players have died or left. Ending game."));
+                p.sendMessage(Chat.c("§c§lAll players have died or left. Ending game."));
                 p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
             }
             stopGame();
@@ -391,29 +258,26 @@ public class PluginMain extends JavaPlugin implements Listener {
     @EventHandler
     public void onPickupItem(EntityPickupItemEvent event) {
         if (!(event.getEntity() instanceof Player p)) {return;}
-        if (!playersInGame.contains(p)) {return;}
+        if (!this.gameManager.playersInGame.contains(p)) {return;}
 
         event.setCancelled(true);
     }
 
     private void loadConfig() {
-        gap = this.config.getInt("gap", gap);
-        borderSize = this.config.getInt("border-size", borderSize);
-        defaultTime = this.config.getInt("default-time", defaultTime);
-        prepareTime = this.config.getInt("prepare-time", prepareTime);
-        currentGame = this.config.getInt("last-game", currentGame);
-        Logger.info("Last game was {0}.", currentGame);
+        this.food = ItemLoader.loadShortItemStack(this.config.getString("food", ""));
+        this.effects = ItemLoader.loadPotionEffects(this.config.getConfigurationSection("effects"));
+        this.gap = this.config.getInt("game-spacing", this.gap);
+        this.borderSize = this.config.getInt("border-size", this.borderSize);
+        this.defaultInterval = this.config.getInt("default-game-interval", this.defaultInterval);
+        this.prepareTime = this.config.getInt("prepare-time", this.prepareTime);
         
-        currentGame = findNextGame(currentGame + 1);
-        Logger.info("Next game will be {0}.", currentGame);
-
-        avoidedBiomes.clear();
+        this.avoidedBiomes.clear();
         for (String biome : this.config.getStringList("avoided-biomes")) {
-            avoidedBiomes.add(biome.toUpperCase());
+            this.avoidedBiomes.add(biome.toUpperCase());
         }
-        Logger.info("Avoided biomes: {0}", String.join(", ", avoidedBiomes));
+        Logger.info("Avoided biomes: {0}", String.join(", ", this.avoidedBiomes));
 
-        items.clear();
-        items = ItemLoader.loadItems(itemsConfig.getConfigurationSection("items"));
+        this.items.clear();
+        this.items = ItemLoader.loadItems(this.itemsConfig.getConfigurationSection("items"));
     }
 }
