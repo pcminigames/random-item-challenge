@@ -1,5 +1,5 @@
 name: "ric"
-version: "2.0"
+version: "2.2"
 main: "com.pythoncraft.ric.PluginMain"
 api-version: "1.21"
 authors: [pythoncraft]

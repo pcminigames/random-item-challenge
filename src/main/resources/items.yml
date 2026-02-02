@@ -1,0 +1,186 @@
+items:
+  '001': iron_sword
+  '002': iron_shovel
+  '003': iron_axe
+  '004': iron_hoe
+  '005': iron_pickaxe
+  '006': iron_helmet
+  '007': iron_leggings
+  '008': iron_chestplate
+  '009': iron_boots
+  '010': golden_sword
+  '011': golden_shovel
+  '012': golden_axe
+  '013': golden_hoe
+  '014': golden_pickaxe
+  '015': golden_helmet
+  '016': golden_leggings
+  '017': golden_chestplate
+  '018': golden_boots
+  '019': diamond_sword
+  '020': diamond_shovel
+  '021': diamond_axe
+  '022': diamond_hoe
+  '023': diamond_pickaxe
+  '024': diamond_helmet
+  '025': diamond_leggings
+  '026': diamond_chestplate
+  '027': diamond_boots
+  '028': netherite_sword
+  '029': netherite_shovel
+  '030': netherite_axe
+  '031': netherite_hoe
+  '032': netherite_pickaxe
+  '033': netherite_helmet
+  '034': netherite_leggings
+  '035': netherite_chestplate
+  '036': netherite_boots
+  '037': mace
+  '038': dirt*256
+  '039': sponge*256
+  '040': bamboo*256
+  '041': birch_door*256
+  '042': warped_trapdoor*256
+  '043': obsidian*256
+  '044': respawn_anchor*256
+  '045': end_crystal*64
+  '046': cobweb*16
+  '047': ender_pearl*16
+  '048': wind_charge*16
+  '049': cobblestone*256
+  '050': green_concrete*256
+  '051': sand*256
+  '052': pointed_dripstone*256
+  '053': jungle_leaves*256
+  '054': chain*256
+  '055': lava_bucket*9
+  '056': water_bucket*9
+  '057': pufferfish_bucket*9
+  '058': powder_snow_bucket*9
+  '059': weeping_vines*256
+  '060': vines*256
+  '061': twisting_vines*256
+  '062': slime_block*256
+  '063': honey_block*256
+  '064': hay_block*256
+  '065': bamboo_raft*256
+  '066': furnace*256
+  '067': crafting_table*256
+  '068': iron_ingot*256
+  '069': diamond*256
+  '070': golden_ingot*256
+  '071': anvil*256
+  '072': tnt*256
+  '073': flint_and_steel
+  '074': shears
+  '075': spyglass
+  '076': glowstone*256
+  '077': fishing_rod
+  '078': creeper_spawn_egg*10
+  '079': golden_apple*10
+  '080': enchanted_golden_apple
+  '081': shield
+  '082': totem_of_undying
+  '083': bow
+  '084': crossbow
+  '085': arrow*256
+  '086': lapis_block*256
+  '087': enchanting_table*256
+  '088': experience_bottle*256
+  '089': rail*256
+  '090': tnt_minecart*16
+  '091':
+    id: stone_sword
+    enchantments:
+      fire_aspect: 1
+  '092':
+    id: stone_sword
+    enchantments:
+      knockback: 1
+  '093':
+    id: chainmail_boots
+    enchantments:
+      depth_strider: 3
+  '094':
+    id: chainmail_boots
+    enchantments:
+      feather_falling: 4
+  '095':
+    id: chainmail_leggings
+    enchantments:
+      swift_sneak: 3
+  '096':
+    id: chainmail_chestplate
+    enchantments:
+      thorns: 3
+  '097':
+    id: turtle_helmet
+    enchantments:
+      respiration: 3
+      aqua_affinity: 1
+  '098':
+    id: trident
+    enchantments:
+      loyalty: 3
+  '099':
+    id: trident
+    enchantments:
+      riptide: 3
+  '100':
+    id: splash_potion
+    effects:
+      levitation:
+        duration: 400
+        amplifier: 1
+    potion-color: '#e7d9e2'
+    custom-name: Potion of Levitation II
+  '101':
+    id: splash_potion
+    effects:
+      slow_falling:
+        duration: 1800
+        amplifier: 0
+    potion-color: '#6f6186'
+    custom-name: Potion of Slow Falling
+  '102':
+    id: splash_potion
+    effects:
+      strength:
+        duration: 3600
+        amplifier: 0
+    potion-color: '#e2c112'
+    custom-name: Potion of Strength
+  '103':
+    id: splash_potion
+    effects:
+      instant_damage:
+        duration: 0
+        amplifier: 1
+    potion-color: '#841992'
+    custom-name: Potion of Harming II
+  '104':
+    id: splash_potion
+    effects:
+      weakness:
+        duration: 1200
+        amplifier: 32
+    potion-color: '#aa7fa8'
+    custom-name: Potion of Weakness XXXIII
+  '105':
+    id: tipped_arrow
+    count: 10
+    effects:
+      levitation:
+        duration: 60
+        amplifier: 6
+    potion-color: '#e7d9e2'
+    custom-name: Arrow of Levitation VII
+  '106':
+    id: tipped_arrow
+    count: 10
+    effects:
+      nausea:
+        duration: 200
+        amplifier: 1
+    potion-color: '#80c71f'
+    custom-name: Arrow of Nausea II

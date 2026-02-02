@@ -42,6 +42,7 @@ import com.pythoncraft.gamelib.Logger;
 import com.pythoncraft.gamelib.PlayerActions;
 import com.pythoncraft.gamelib.Chat;
 import com.pythoncraft.gamelib.inventory.ItemLoader;
+import com.pythoncraft.gamelib.inventory.ItemSet;
 import com.pythoncraft.gamelib.Timer;
 
 
@@ -70,13 +71,16 @@ public class PluginMain extends JavaPlugin implements Listener {
     public Timer timer;
     public Random random = new Random();
 
-    public List<ItemStack> items = new ArrayList<>();
+    public List<ItemSet> items = new ArrayList<>();
 
     @Override
     public void onEnable() {
         instance = this;
 
         Bukkit.getPluginManager().registerEvents(this, this);
+
+        saveResource("config.yml", false);
+        saveResource("items.yml", false);
 
         this.configFile = new File(getDataFolder(), "config.yml");
         this.config = YamlConfiguration.loadConfiguration(this.configFile);
@@ -94,6 +98,7 @@ public class PluginMain extends JavaPlugin implements Listener {
         this.getCommand("compass").setExecutor(new CompassCommand());
         this.getCommand("compass").setTabCompleter(new CompassTabCompleter());
 
+        // TODO: Make the compass message configurable
         this.compassManager = new CompassManager("§7Tracking §a{TARGET} §7at §f{X} {Y} {Z}", ShowWhen.IN_HAND);
         this.gameManager = new GameManager();
         this.gameManager.setAvoidedBiomes(this.avoidedBiomes);
@@ -185,8 +190,8 @@ public class PluginMain extends JavaPlugin implements Listener {
 
     public void giveRandomItem(Player player) {
         int i = random.nextInt(this.items.size());
-        ItemStack item = this.items.get(i).clone();
-        player.getInventory().addItem(item);
+        ItemSet item = this.items.get(i).clone();
+        item.giveToPlayer(player);
     }
 
     @EventHandler
@@ -216,8 +221,10 @@ public class PluginMain extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        if (this.gameManager.playersInGame != null) {
-            PlayerActions.setupPlayerReset(effects).accept(player, this.gameManager.playersInGame);
+        // PlayerActions.setupPlayerReset(effects).accept(player, this.gameManager.playersInGame);
+        if (this.gameManager.playersInGame.size() == 0) {
+            Logger.info("All players have left. Ending game.");
+            stopGame();
         }
 
         if (this.gameManager.bossbar != null) {this.gameManager.bossbar.removePlayer(player);}
@@ -264,11 +271,11 @@ public class PluginMain extends JavaPlugin implements Listener {
     }
 
     private void loadConfig() {
-        this.food = ItemLoader.loadShortItemStack(this.config.getString("food", ""));
+        this.food = ItemLoader.loadShort(this.config.getString("food", ""));
         this.effects = ItemLoader.loadPotionEffects(this.config.getConfigurationSection("effects"));
         this.gap = this.config.getInt("game-spacing", this.gap);
         this.borderSize = this.config.getInt("border-size", this.borderSize);
-        this.defaultInterval = this.config.getInt("default-game-interval", this.defaultInterval);
+        this.defaultInterval = this.config.getInt("default-interval", this.defaultInterval);
         this.prepareTime = this.config.getInt("prepare-time", this.prepareTime);
         
         this.avoidedBiomes.clear();
@@ -278,6 +285,6 @@ public class PluginMain extends JavaPlugin implements Listener {
         Logger.info("Avoided biomes: {0}", String.join(", ", this.avoidedBiomes));
 
         this.items.clear();
-        this.items = ItemLoader.loadItems(this.itemsConfig.getConfigurationSection("items"));
+        this.items = ItemLoader.loadItemSets(this.itemsConfig.getConfigurationSection("items"));
     }
 }

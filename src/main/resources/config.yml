@@ -1,0 +1,16 @@
+effects:
+  night-vision:
+    duration: -1
+    amplifier: 0
+food: BAKED_POTATO*64
+
+default-interval: 30 # in seconds
+border-size: 400
+game-spacing: 6000
+prepare-time: 15 # in seconds
+
+avoided-biomes:
+- ocean
+
+# Don't change
+last-game: 7
