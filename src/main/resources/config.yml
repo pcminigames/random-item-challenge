@@ -4,6 +4,10 @@ effects:
     amplifier: 0
 food: BAKED_POTATO*64
 
+# Information displayed on the compass
+# Available placeholders: {TARGET}, {OWNER}, {DISTANCE}, {X}, {Y}, {Z}
+compass-info: "§7Tracking §a{TARGET}§7 (§e{DISTANCE}m§7)"
+
 default-interval: 30 # in seconds
 border-size: 400
 game-spacing: 6000

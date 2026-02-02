@@ -62,6 +62,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     public int gap = 6000;
     public int prepareTime = 5;
     public HashSet<String> avoidedBiomes = new HashSet<>();
+    public String compassInfo = "§7Tracking §a{TARGET}§7 (§e{DISTANCE}m§7)";
     public int defaultInterval = 60;
     public int interval;
 
@@ -98,8 +99,7 @@ public class PluginMain extends JavaPlugin implements Listener {
         this.getCommand("compass").setExecutor(new CompassCommand());
         this.getCommand("compass").setTabCompleter(new CompassTabCompleter());
 
-        // TODO: Make the compass message configurable
-        this.compassManager = new CompassManager("§7Tracking §a{TARGET} §7at §f{X} {Y} {Z}", ShowWhen.IN_HAND);
+        this.compassManager = new CompassManager(this.compassInfo, ShowWhen.IN_HAND);
         this.gameManager = new GameManager();
         this.gameManager.setAvoidedBiomes(this.avoidedBiomes);
         this.gameManager.setBorder(this.borderSize);
@@ -277,6 +277,7 @@ public class PluginMain extends JavaPlugin implements Listener {
         this.borderSize = this.config.getInt("border-size", this.borderSize);
         this.defaultInterval = this.config.getInt("default-interval", this.defaultInterval);
         this.prepareTime = this.config.getInt("prepare-time", this.prepareTime);
+        this.compassInfo = this.config.getString("compass-info", this.compassInfo);
         
         this.avoidedBiomes.clear();
         for (String biome : this.config.getStringList("avoided-biomes")) {
