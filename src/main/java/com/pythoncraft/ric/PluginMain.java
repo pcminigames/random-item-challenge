@@ -8,7 +8,6 @@ import java.util.Random;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.GameRule;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
@@ -26,6 +25,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import com.pythoncraft.ric.command.RICCommand;
 import com.pythoncraft.ric.command.RICTabCompleter;
@@ -41,6 +41,7 @@ import com.pythoncraft.gamelib.game.event.TickEvent;
 import com.pythoncraft.gamelib.Logger;
 import com.pythoncraft.gamelib.PlayerActions;
 import com.pythoncraft.gamelib.Chat;
+import com.pythoncraft.gamelib.GameLib;
 import com.pythoncraft.gamelib.inventory.ItemLoader;
 import com.pythoncraft.gamelib.inventory.ItemSet;
 import com.pythoncraft.gamelib.Timer;
@@ -125,11 +126,18 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         this.interval = time;
 
-        this.world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
+        GameLib.setGamerule(world, new String[]{"show_advancement_messages", "announce_advancements"}, false);
+        GameLib.setGamerule(world, new String[]{"immediate_respawn", "do_immediate_respawn"}, true);
+        // this.world.setGameRule(GameRule.SHOW_ADVANCEMENT_MESSAGES, false);
+        // this.world.setGameRule(GameRule.IMMEDIATE_RESPAWN, true);
         this.world.setTime(1000); // Set time to morning
 
         this.gameManager.setGameTime(0, this.prepareTime, 0);
         this.gameManager.startGame(this.world);
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, this.prepareTime * 20, 0));
+        }
     }
 
     @EventHandler
@@ -203,7 +211,8 @@ public class PluginMain extends JavaPlugin implements Listener {
         
         player.setGameMode(GameMode.SPECTATOR);
         player.teleport(this.gameManager.getSpectatorLocation());
-        player.clearActivePotionEffects();
+        // player.getActivePotionEffects().clear();
+        PlayerActions.clearEffects(player);
         player.getInventory().clear();
 
         if (this.gameManager.isGame) {
@@ -222,7 +231,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     public void onPlayerLeave(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         // PlayerActions.setupPlayerReset(effects).accept(player, this.gameManager.playersInGame);
-        if (this.gameManager.playersInGame.size() == 0) {
+        if (this.gameManager.playersInGame.stream().filter(p -> p.isOnline()).count() == 0) {
             Logger.info("All players have left. Ending game.");
             stopGame();
         }
@@ -235,31 +244,33 @@ public class PluginMain extends JavaPlugin implements Listener {
         Player player = event.getEntity();
         if (!this.gameManager.playersInGame.contains(player)) {return;}
 
-        player.getInventory().clear();
-        PlayerActions.setupPlayerReset(effects).accept(player, this.gameManager.playersInGame);
-        player.setGameMode(GameMode.SPECTATOR);
-        player.teleport(this.gameManager.getSpectatorLocation());
-        player.clearActivePotionEffects();
+        Timer.after(1, () -> {
+            player.getInventory().clear();
+            PlayerActions.clearEffects(player);
+            PlayerActions.setupPlayerReset(effects).accept(player, this.gameManager.playersInGame);
+            player.teleport(this.gameManager.getSpectatorLocation());
+            player.setGameMode(GameMode.SPECTATOR);
 
-        Logger.info("{0} has died. {1} players remaining.", player.getName(), this.gameManager.playersInGame.size());
-
-        this.gameManager.playersInGame.remove(player);
-
-        if (this.gameManager.playersInGame.size() == 1) {
-            Player winner = this.gameManager.playersInGame.iterator().next();
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                p.sendMessage(Chat.c("§a§l" + winner.getName() + " is the last player standing and wins the game!"));
-                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
+            Logger.info("{0} has died. {1} players remaining.", player.getName(), this.gameManager.playersInGame.size());
+    
+            this.gameManager.playersInGame.remove(player);
+    
+            if (this.gameManager.playersInGame.size() == 1) {
+                Player winner = this.gameManager.playersInGame.iterator().next();
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    p.sendMessage(Chat.c("§a§l" + winner.getName() + " is the last player standing and wins the game!"));
+                    p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
+                }
+                stopGame();
+            } else if (this.gameManager.playersInGame.size() == 0) {
+                Logger.info("All players have died or left. Ending game.");
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    p.sendMessage(Chat.c("§c§lAll players have died or left. Ending game."));
+                    p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
+                }
+                stopGame();
             }
-            stopGame();
-        } else if (this.gameManager.playersInGame.size() == 0) {
-            Logger.info("All players have died or left. Ending game.");
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                p.sendMessage(Chat.c("§c§lAll players have died or left. Ending game."));
-                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
-            }
-            stopGame();
-        }
+        }).start();
     }
 
     @EventHandler
