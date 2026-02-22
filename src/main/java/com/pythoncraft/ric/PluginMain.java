@@ -65,6 +65,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     public HashSet<String> avoidedBiomes = new HashSet<>();
     public String compassInfo = "§7Tracking §a{TARGET}§7 (§e{DISTANCE}m§7)";
     public int defaultInterval = 60;
+    public int defaultProbability = 24;
     public int interval;
 
     public CompassManager compassManager;
@@ -73,7 +74,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     public Timer timer;
     public Random random = new Random();
 
-    public List<ItemSet> items = new ArrayList<>();
+    public WeightedList<ItemSet> items = new WeightedList<>();
 
     @Override
     public void onEnable() {
@@ -93,7 +94,8 @@ public class PluginMain extends JavaPlugin implements Listener {
         this.loadConfig();
 
         Logger.info("Random Item Challenge plugin enabled!");
-        Logger.info("Items loaded: {0}", this.items.size());
+        Logger.info("Items loaded: {0}", this.items.count());
+        Logger.info("Default probability: {0}", this.defaultProbability);
 
         this.getCommand("ric").setExecutor(new RICCommand());
         this.getCommand("ric").setTabCompleter(new RICTabCompleter());
@@ -128,8 +130,6 @@ public class PluginMain extends JavaPlugin implements Listener {
 
         GameLib.setGamerule(world, new String[]{"show_advancement_messages", "announce_advancements"}, false);
         GameLib.setGamerule(world, new String[]{"immediate_respawn", "do_immediate_respawn"}, true);
-        // this.world.setGameRule(GameRule.SHOW_ADVANCEMENT_MESSAGES, false);
-        // this.world.setGameRule(GameRule.IMMEDIATE_RESPAWN, true);
         this.world.setTime(1000); // Set time to morning
 
         this.gameManager.setGameTime(0, this.prepareTime, 0);
@@ -197,8 +197,7 @@ public class PluginMain extends JavaPlugin implements Listener {
     }
 
     public void giveRandomItem(Player player) {
-        int i = random.nextInt(this.items.size());
-        ItemSet item = this.items.get(i).clone();
+        ItemSet item = this.items.getRandom().clone();
         item.giveToPlayer(player);
     }
 
@@ -288,6 +287,7 @@ public class PluginMain extends JavaPlugin implements Listener {
         this.borderSize = this.config.getInt("border-size", this.borderSize);
         this.defaultInterval = this.config.getInt("default-interval", this.defaultInterval);
         this.prepareTime = this.config.getInt("prepare-time", this.prepareTime);
+        this.defaultProbability = this.config.getInt("default-probability", this.defaultProbability);
         this.compassInfo = this.config.getString("compass-info", this.compassInfo);
         
         this.avoidedBiomes.clear();
@@ -297,6 +297,6 @@ public class PluginMain extends JavaPlugin implements Listener {
         Logger.info("Avoided biomes: {0}", String.join(", ", this.avoidedBiomes));
 
         this.items.clear();
-        this.items = ItemLoader.loadItemSets(this.itemsConfig.getConfigurationSection("items"));
+        this.items = WeightedList.fromItemSets(ItemLoader.loadItemSets(this.itemsConfig.getConfigurationSection("items")));
     }
 }
