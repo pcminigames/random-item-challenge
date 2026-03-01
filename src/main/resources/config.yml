@@ -13,7 +13,7 @@ default-interval: 30 # in seconds
 border-size: 400
 game-spacing: 6000
 prepare-time: 15 # in seconds
-deafault-probability: 24
+default-probability: 24
 
 avoided-biomes:
 - ocean
